@@ -1,0 +1,333 @@
+1.
+
+Actor
+
+	doSomething() 
+		pure virtual since it's not used by a generic actor and will need to be implemented 
+		uniquely by a derived Actor (and its derivatives, and so on)
+	getWorld()
+		returns a pointer to the StudentWorld class. This is necessary since we need to access
+		this class in many of the member functions in Actor.cpp.
+		Not virtual since it's not redefined.
+	isAlive()
+		returns the m_alive member of the Actor class that indicates whether or not an actor 
+		is alive. not virtual since it wouldn't be changed elsewhere.
+	setDead()
+		changes the m_alive member of the Actor class to false, meaning it's dead. This may be
+		necessary so that we can notify the rest of the program that an Actor is dead. Not virtual
+		since it acts on a private member of the base class (and won't need to be changed for derived)
+	changeWalkthrough()
+		if the canBeWalkedThrough bool is false, change it to true and vice versa. This will be used for when
+		a player steps on a walk-through-walls goodie and will be used for the destroyable brick's bool
+	walkThrough()
+		returns the canBeWalkedThrough bool. This is used to access this bool in the studentworld class.
+		not virtual. wouldn't be changed in any other class.
+Player
+	doSomething()
+		if not alive, return from the function 
+		if the player is colocated with an actor that would kill it, set to dead, play the death sound,  return.
+		initialize a character
+			use the getKey function to obtain a character corresponding to a button pushed
+			if left and the player can move to that spot (no bricks that can block at that time)
+				move left
+			same with the other 3 directions
+			if space, then if there are sprayers left, 
+					add a sprayer (if possible to add to that location)
+	increaseSimultaneousSprayers
+		passes in a max.
+		if the max sprayers (found from getworld) is equal to max
+			then num_sprayers is equal to max
+		if orig_sprayers_num (player's original sprayer count) is equal to max
+			then num_sprayers is equal to max
+		Basically, this works in a way such that it'll be called to increase to a boosted one
+		when i pass in that value and go back to the original value if i pass in the original value.
+		The program will call them when necessary (when player steps on boost, it'll call this function
+		to increase to this value, and when it expires, it'll call this function to go back to the original)
+	OrigNumSprayers
+		returns the player's original sprayer count
+		This will be used for the studentworld class when it needs to change the palyer's amount of sprayers.
+	
+Brick
+
+DestrBrick
+	doSomething()
+		call the StudentWorld's WillDie function
+		setDead if true
+PermaBrick
+	doSomething()
+		do nothing
+Zumi: 
+none are virtual since they don't need to be redefined. 
+	deadEnd
+		passes in a decider int (will be designated a value based on random generation (represents direction))
+		checks the next coordinate to see if the zumi could walk there
+			if it's blocked (from a brick or sprayer) then set a ContinueThatDirection bool to false.
+	zumiMove
+		passes in coordinates of the Zumi, decider int (as reference)
+			if coninueThatDirection bool is false, then generate a new number and set the decider int to a corresponding
+			int, then set the bool to true (so that it won't access this again until it gets blocked--see deadEnd)
+			
+			otherwise, we use the decider to move a direction via switch case and moveTo (since continuethatdirection 
+			is true, which means that the zumi isn't blocked by anything)
+	returnTicksPerMove
+		returns the z_ticksPerMove (amount of ticks a zumi has per move)
+		will need to use this for the doSomething functions in the 2 types of zumi
+	decreaseTicksOrReset
+		decreases the ticks only if the ticks haven't reached zero yet.
+		If it is zero, then it resets to the default (have a dummy constTicks to save the ticks)
+SimpleZumi
+	doSomething
+		1. if not alive, return
+		2. calls decreaseTicksOrReset 
+		3. if returnTicksPerMove is equal to zero (equivalent to n ticks passing)
+			decide on a move (use deadEnd and zumiMove)
+		4. When killed by bugspray (uses WillDie in getWorld)
+			set to dead, play the enemy death sound, increase score by 100, generate a random number 0-99 inclusive
+			if this number is less than the probability of getting a goodie, then choose a goodie to drop (call a StudentWorld func)
+			if the number of zumi = 1 when this happened, play the sound that reveals the exit.
+ComplexZumi
+	doSomething
+		1. Same as SimpleZumi, but uncompleted smell search function
+				however, when it dies, it gives 500 points.
+	withinRange
+		Checks if the zumi is within x coordinates horizontal and y coordinates vertial from the player
+	search
+		Was supposed to do the search but is very very poorly implemented and will not perform the function :'(
+	both types of zumi have the same private member decider since we need to use this with the Zumi function but cannot access
+	a private member of Zumi (decider has to be modified)
+Exit
+	doSomething
+		if there are no zumi left, set to visible. 
+TimedLifeActor:
+	none are virtual since they're defined to be used for all it's derived classes.
+	
+	getLifetime
+		returns the lifetime member in that calss
+	decrementLifetime
+		decreased the lifetime of this class by 1 
+	expireImmediately
+		set the lifetime to zero.
+BugSprayer
+	doSomething
+		1. if not alive, return
+		2. decrement lifetime
+		3. if it willDie, then make it expire immediately (since hit by a spray, chain reaction etc)
+		4. if the lifetime is zero, drop spray wherever possible
+			play the sound, then set to dead
+BugSpray
+	doSomething
+		1. if not alive, return
+		2. decrement the lifetime
+		3. if lifetime reaches zero, set to dead
+ExtraLifeGoodie
+	doSomething
+		1. if dead, return
+		2. decrement lifetime
+		3. if lifetime = 0, set ot dead
+		4. if palyer is colocated with this, increase lives, increase score 1000, set to dead, play the sound
+WalkThroughWallsGoodie
+	doSomething
+		same as ExtraLifeGoodie, but activates ActivationStatus of StudentWorld instead
+IncreaseSimultaneousSprayersGoodie
+	doSomething
+		same as ExtraLifeGoodie, but activates changeActivateSprayers
+
+Destructors for these above classes do nothing :/
+
+
+StudentWorld
+	~StudentWorld: 
+		delete the palyer
+		iterate through the vector of pointers to actor, deleting what they're pointing to and 
+			erasing the pointer from the vector. By erasing, was able to increment. 
+	
+	Init()
+		load a new level based on a string return from returnLev (using level pointer)
+		1.if no first level, then return the appropriate status
+		2.if no level and past 1st, then return winner status
+		3.add all actors that intend to be there in the beginning of the level
+		4. assign the rest of the member variables which may be used in other functions
+		5. return continuegame status
+	move()
+		1.call all actors' doSomething functions
+		2. if player's dead, decrease lives and return dead status
+		3. if the bonus is greater than zero decrement it
+		4. if ActivateExtraSprayers is true (activated when player steps on that goodie and expiration)
+			then if a different bool (a member) is true, increase the sprayers and change the bool to false (so it won't go to 
+			this part of the function since move calls each tick)
+				if the increase lifetime is greater than zero, decrement it
+				if it equals zero, then change activateExtraSprayers to false, rDecrease palyer sprayers, change bool to true
+		5. if ActivationStatus is true, 
+			if a different member bool is true, activate walk through walls
+				-change bool to false so it won't go through this part again
+			if the walkthrough life is greater than zero decrement it
+			if the walkthrough life becomes zero, change activation status. deactivate walk through walls,
+			obtain the original walkthroughlife (since it was decremented)
+			and set the member bool to true
+		6. If the player is colocated with the exit, then finish level: play sound, increase by bonus, set finishbool to true
+			and return the complete level status
+		7. Display the text
+		8. Dispose of all dead actors using an iterator (iterate through, check if dead, remove if true)
+		9. return continue game status
+	setDisplayText
+		1. get the score, level, lives values
+		2. change them to strings
+		3. make the string up
+			-add certain zeros based on the score's string size, and do the same with other necessary values
+		4. setGameStatText (the completed string)
+	cleanUp
+		1. delete the actors
+		2. if the finish bool is true, set the bool to false, increment the level member var, delete the level
+			Level pointer points to nullptr now (reallocated when init is called again)
+	willBeAtSamePlace
+		If the bricks are at this passed in x,y location return true
+		If not, return false
+		Made one for the player, since the player could pass through the destroyable brick when
+		it has the ability to do so.
+	ZumiBlocked
+		Check if there's a brick that blocks the zumi (I put this one separate from above because
+		of the walkthrough status that I used in the Actor class. 
+		If there's  abrick in that coordinate, return true
+		Otherwise, false.
+	ZumiBlockedBySprayer
+		Check if the zumi's blocked by a sprayer (if so, return true)
+	colocatedDead
+		for the palyer: if the palyer is on the coordinate of a 
+		zumi, bugspray or a destroyable brick when not in the walkthrough status,
+		return true (to set player to dead in its getSomething)
+	WillDie
+		Separate function that kills the Zumi when they step on bug spray
+	colocatedExit
+		When the palyer is colocated with teh exit, return true (to finish level)
+	getPlayer
+		returns a pointer to the player
+	changeActivationStatus
+		changes a bool member called ActivationStatus to true if false and vice versa
+	activateOrDeactivatePlayerWalkThroughWalls
+		call changeWalkThrough on all destroyable bricks
+	playerCanWalkThroughWalls
+		if there's a destroyanble brick and walkThrough() is true, then return true, otherwise false.
+	addSprayerIfPOssible
+		check all teh actors for a bugsprayer.
+		returns from teh function if the x,y value has either a bugsprayer or a destroyable brick
+		Adds a new Sprayer if it hasn't returned
+	zumiAndSprayersBlockedAt
+		passes in x,y coordinates. returns true if the coordinate has an item that
+		can't be passed by a zumi
+	tryDroppingSprayAtAndIndicateContinuable
+		passes in x,y coordinates, and if 
+			there's a permabrick, destroyable brick, return false.
+		if not, then drop a spray first
+			and then check if it was a destroyable brick there (then return false)
+		if there was no brick at all, then return true
+	numOfSprayersOut
+		return how many sprayers are currently out right now
+	numOfZumi
+		return how many zumi are present
+	goodieProb
+		returns the goodieProb member variable
+	chooseGoodietoDrop
+		drops a goodie based on the probability of the particular goodie (uses a random number generator)
+	colocatedGoodie
+		if a player is colocated with a goodie, return true (for doSeomthing() in the goodies classes)
+	increaseOrDecreasePlayerSimultaneousSprayers
+		calls player's increaseSumultaneousSprayers with a passed in sprayernum value.
+	changeActivateSprayers
+		change bool of ActivateExtraSprayers to true if false, and vice versa
+	getMaxSprayers
+		return the member maxboostedsprayers
+	returnLev 
+		passes in an int corresponding to the level number
+		composes a string based on the number passed in
+		returns the full file in "level0x.dat" if the number is 1 digit
+		returns in "levelxx...x.dat" if the number is n digits long
+		to be called when creating a level
+	smelldist
+		return the member complexSmell.
+	NONE ARE VIRTUAL SINCE WE DON'T HAVE ANY DERIVED CLASSES FROM STUDENTWORLD.
+
+
+2. Couldn't figure out how to implement the search of the Complex Zumi. 
+	Couldn't figure out how to implement the maze algorithm.
+
+3.	I composed the level string based on the idea that the 
+		file name will always be of the form level(number).dat
+ 	I decided to use the IDs of the members I made (as a private member of actor)
+		to be able to find whichever actor I needed. 
+	I defined many member variables to keep track of constants that were in each level file
+		since I wasn't sure how to access this without creating a level and I needed
+		to use these values in other functions.
+4. 
+Player	
+	I tested the player class by trying to move it around and see what happens. 
+	When I implemented the bugsprayer, I tried to see if the proper command would work.
+	When I moved to the exit, I made sure that it would complete the level.
+	I made sure that when I moved to a zumi, the player would die, or when I was not able to 
+	walk through destrbricks, I would die if I was on that brick type. 
+PermaBrick
+	? I just left them there and made sure that nothing else could walk on them ever.
+DestrBrick
+	I tested to see if they could be destroyed by a spray and that nothing could walk through it
+	except for the player when the player had the walk through status. 
+SimpleZumi
+	I wasn't sure how to check if it could move after exactly x ticks because it was hard to see it,
+	but I made sure it moved consistently (e.g. all pauses were of the same length)
+	I made sure they couldn't walk through anything that couldn't be walked through, like the bricks,
+	sprayers. I had to see if it would only move in one direction until it couldn't move further.
+	Made sure the sounds worked fine. Made sure they were gone when they died.
+ComplexZumi
+	Same tests as the SimpleZumi. I couldn't test the intelligent search method since I couldn't get it
+	implemented
+Coord
+	Not a derivative of aCtor, but was intended to be used for the search method (for a queue)
+Exit
+	Made sure that the exit didn't appear at all until the player finished the level:
+	waited a while, killed zumi, picked up bonuses, etc... (without finishing level)
+	Made sure that it produced the correct sound when stepped on.	
+BugSprayer
+	Made sure they produced the sound, died the right way, set off sprayers.
+	MAde sure that zumi could not step on them
+	Made sure that the player could only drop a certain amount of these
+BugSpray
+	I made sure that the spray were all set off at the same time. Made sure they 
+	destroyed what they could destroy by setting them on zumi, bricks, and the player.
+	Made sure they didn't continue if the trail was blocked by a brick.
+ExtraLifeGoodie
+	Made sure the goodie appeared when a zumi died. Made sure the goodie disappeared
+	when it hadn't been picked up by the player within its lifetime. Made sure that the
+	sound was played and the bonus applied, and that the extra life did increase and
+	show up on the grid. Died with a player to see if the life really was there.
+WalkThroughWallsGoodie
+	Same as ExtraLife, but made sure that the walkthroughwalls effect did apply for the
+	correct amount of time (I would cout the lifetime as it decremented).
+	Made sure the effect was removed when that effect's lifetime was gone.
+IncreaseSimultaneousSprayersGoodie
+	Same as walkThroughWallsGoodie
+	Had to test if the max was really the correct max and also check if it would drop
+	only up to that amount until it expired.
+StudentWorld
+	Had to test the deletion and removal of actors from the vector many times since I would
+	crash a lot from dying or completing a level.
+	For init, I had to do a lot of testing on the switches that were necessary to activate 
+	the goodies' effects (walkthroughwall and extra sprayers) since the move function
+	was called at every tick. I had to figure out this switch method to allow this to work.
+	I didn't know how to move on to the next map, but then I used the cleanup function.
+	I had to make the level into a pointer and make it pass in some string that corresponded
+	to the level so that I could pass in a string determined by some other function. 
+	At first, I got it to go to the next level, but then I saw that everything appeared twice.
+	This was because I called init() in teh cleanup, thinking it wouldn't be called again
+	but it does get called again after cleanUp returns. I had to experiment with the 
+	function that set the game's stats text up on the interface. I had to look at how to 
+	put a certain amount of zeros based on the values. I played around with that until I 
+	got it to follow the spec. 
+
+	
+
+
+	
+
+
+
+	
+
+	
